@@ -1,0 +1,630 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "name": "TF-IDF.ipynb",
+      "provenance": [],
+      "authorship_tag": "ABX9TyPKy+TJ4LevCo4M0j5AkYBL",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/RogerHeederer/NLP_entry/blob/master/20200906%20practice11\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "ZQZvwrt4Zwm9",
+        "colab_type": "text"
+      },
+      "source": [
+        "Reference Source : wikidocs.net 유영준님 자료\n",
+        "\n",
+        "스스로 학습하면서 필요한 부분에는 추가적 설명, 소스 코드 삽입 및 수정 등이 있습니다. 영리적 목적이 아닌, 자기 계발 목적으로 정리한 자료입니다.\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "qJKxYJBDZiMR",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "import pandas as pd\n",
+        "from math import log #IDF 계산"
+      ],
+      "execution_count": 1,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "CKKbM9uVZ5BU",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "docs = [\n",
+        "        '먹고 싶은 사과',\n",
+        "        '먹고 싶은 바나나',\n",
+        "        '길고 노란 바나나 바나나',\n",
+        "        '저는 과일이 좋아요'\n",
+        "]\n",
+        "vocab = list(set(w for doc in docs for w in doc.split()))\n",
+        "vocab.sort() #중복 워드 ㅔㅈ거"
+      ],
+      "execution_count": 2,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "fuSFwR2XaI1Q",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 35
+        },
+        "outputId": "7c6b52fa-74a6-419c-c5fb-d25d8524d98f"
+      },
+      "source": [
+        "vocab"
+      ],
+      "execution_count": 3,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "['과일이', '길고', '노란', '먹고', '바나나', '사과', '싶은', '저는', '좋아요']"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 3
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "7uWWR-1Ee9-4",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 35
+        },
+        "outputId": "9d1e6d40-8b9a-4965-e8a2-f8b5089749b9"
+      },
+      "source": [
+        "len(docs)"
+      ],
+      "execution_count": 16,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "4"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 16
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ZhHIX73_aLS4",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "N = len(docs)\n",
+        "\n",
+        "def tf(t, d):\n",
+        "  return d.count(t)  \n",
+        "\n",
+        "def idf(t):\n",
+        "  df = 0\n",
+        "  for doc in docs:\n",
+        "    df += t in doc\n",
+        "  return log(N/(df + 1))\n",
+        "\n",
+        "def tfidf(t, d):\n",
+        "  return tf(t,d) * idf(t)"
+      ],
+      "execution_count": 4,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "K8TL260fcb7r",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 35
+        },
+        "outputId": "6feefd86-01ee-4a4f-f00c-b79f6b869c62"
+      },
+      "source": [
+        "docs[1], vocab[4]"
+      ],
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "('먹고 싶은 바나나', '바나나')"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 10
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ZiYblJyxcmUr",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 89
+        },
+        "outputId": "24cf2752-8abe-4800-8655-9f1eec3cae17"
+      },
+      "source": [
+        "print(tf(vocab[4], docs[1]))\n",
+        "print('\\n')\n",
+        "idf(vocab[4])"
+      ],
+      "execution_count": 12,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "1\n",
+            "\n",
+            "\n"
+          ],
+          "name": "stdout"
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "0.28768207245178085"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 12
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "0zr0ARb9bYyY",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 173
+        },
+        "outputId": "a3161fce-fcf4-4a95-83a3-b44089fcfda4"
+      },
+      "source": [
+        "result = []\n",
+        "for i in range(N): # N=4  doc 갯수\n",
+        "  result.append([])\n",
+        "  d = docs[i]\n",
+        "  for j in range(len(vocab)):\n",
+        "    t = vocab[j]\n",
+        "    result[-1].append(tf(t, d))\n",
+        "\n",
+        "tf_ = pd.DataFrame(result, columns = vocab)\n",
+        "tf_"
+      ],
+      "execution_count": 5,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>과일이</th>\n",
+              "      <th>길고</th>\n",
+              "      <th>노란</th>\n",
+              "      <th>먹고</th>\n",
+              "      <th>바나나</th>\n",
+              "      <th>사과</th>\n",
+              "      <th>싶은</th>\n",
+              "      <th>저는</th>\n",
+              "      <th>좋아요</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>2</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "   과일이  길고  노란  먹고  바나나  사과  싶은  저는  좋아요\n",
+              "0    0   0   0   1    0   1   1   0    0\n",
+              "1    0   0   0   1    1   0   1   0    0\n",
+              "2    0   1   1   0    2   0   0   0    0\n",
+              "3    1   0   0   0    0   0   0   1    1"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 5
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "0IAjVBWibpTI",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 328
+        },
+        "outputId": "05f8769d-12f8-4de4-9502-275ecda8768c"
+      },
+      "source": [
+        "result = []\n",
+        "for j in range(len(vocab)):\n",
+        "  t = vocab[j]\n",
+        "  result.append(idf(t))\n",
+        "\n",
+        "idf_ = pd.DataFrame(result, index = vocab, columns = [\"IDF\"])\n",
+        "idf_"
+      ],
+      "execution_count": 13,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>IDF</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>과일이</th>\n",
+              "      <td>0.693147</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>길고</th>\n",
+              "      <td>0.693147</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>노란</th>\n",
+              "      <td>0.693147</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>먹고</th>\n",
+              "      <td>0.287682</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>바나나</th>\n",
+              "      <td>0.287682</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>사과</th>\n",
+              "      <td>0.693147</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>싶은</th>\n",
+              "      <td>0.287682</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>저는</th>\n",
+              "      <td>0.693147</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>좋아요</th>\n",
+              "      <td>0.693147</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "          IDF\n",
+              "과일이  0.693147\n",
+              "길고   0.693147\n",
+              "노란   0.693147\n",
+              "먹고   0.287682\n",
+              "바나나  0.287682\n",
+              "사과   0.693147\n",
+              "싶은   0.287682\n",
+              "저는   0.693147\n",
+              "좋아요  0.693147"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 13
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "-F84t9rmcMq3",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "#사이킷런을 이용한 DTM과 TF-IDF 실습\n",
+        "\n",
+        "from sklearn.feature_extraction.text import CountVectorizer\n",
+        "corpus = [\n",
+        "          'you know I want your love',\n",
+        "          'I like you',\n",
+        "          'what should I do'\n",
+        "]\n",
+        "\n",
+        "vector = CountVectorizer()\n"
+      ],
+      "execution_count": 37,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "zM6cokOwhgs7",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 143
+        },
+        "outputId": "32b4a19a-7754-4aec-f9d4-fe37b4b19f47"
+      },
+      "source": [
+        "print(corpus[0],'\\n', corpus[1],'\\n', corpus[2], '\\n')\n",
+        "print(vector.fit_transform(corpus).toarray()) # 코퍼스로 부터 각 단어의 빈도수 기록"
+      ],
+      "execution_count": 49,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "you know I want your love \n",
+            " I like you \n",
+            " what should I do \n",
+            "\n",
+            "[[0 1 0 1 0 1 0 1 1]\n",
+            " [0 0 1 0 0 0 0 1 0]\n",
+            " [1 0 0 0 1 0 1 0 0]]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "6XxZJy8DiZUM",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 35
+        },
+        "outputId": "0818ca4c-172c-4641-9501-58ebaa3f9155"
+      },
+      "source": [
+        "print(vector.vocabulary_) # 각 단어의 인덱스"
+      ],
+      "execution_count": 39,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "{'you': 7, 'know': 1, 'want': 5, 'your': 8, 'love': 3, 'like': 2, 'what': 6, 'should': 4, 'do': 0}\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "j_3Ak8lbjIjf",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+        "corpus = [\n",
+        "          'you know I want your love',\n",
+        "          'I like you',\n",
+        "          'what should I do',\n",
+        "]\n",
+        "tfidfv = TfidfVectorizer().fit(corpus)"
+      ],
+      "execution_count": 40,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "WUG8csQWjyz0",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 125
+        },
+        "outputId": "f2af0d52-d48a-4531-ad33-951b0aeda582"
+      },
+      "source": [
+        "print(tfidfv.transform(corpus).toarray())"
+      ],
+      "execution_count": 41,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "[[0.         0.46735098 0.         0.46735098 0.         0.46735098\n",
+            "  0.         0.35543247 0.46735098]\n",
+            " [0.         0.         0.79596054 0.         0.         0.\n",
+            "  0.         0.60534851 0.        ]\n",
+            " [0.57735027 0.         0.         0.         0.57735027 0.\n",
+            "  0.57735027 0.         0.        ]]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "xzijIDGFj2_j",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 35
+        },
+        "outputId": "d430719c-0bc7-4856-cf8e-057ebac1918d"
+      },
+      "source": [
+        "print(tfidfv.vocabulary_)"
+      ],
+      "execution_count": 42,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "{'you': 7, 'know': 1, 'want': 5, 'your': 8, 'love': 3, 'like': 2, 'what': 6, 'should': 4, 'do': 0}\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ZcOcnpG3j-Yj",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        ""
+      ],
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
