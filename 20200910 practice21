@@ -1,0 +1,978 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "name": "TextGenerationByRNN.ipynb",
+      "provenance": [],
+      "authorship_tag": "ABX9TyOudC+o3lA97n3cfTyZoeXF",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/RogerHeederer/NLP_entry/blob/master/20200910%20practice21\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "-VQ_rBvmB2gg",
+        "colab_type": "text"
+      },
+      "source": [
+        "\n",
+        "Reference Source : wikidocs.net 유영준님 자료\n",
+        "\n",
+        "스스로 학습하면서 필요한 부분에는 추가적 설명, 소스 코드 삽입 및 수정 등이 있습니다. 영리적 목적이 아닌, 자기 계발 목적으로 정리한 자료입니다."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "4gUmndx1BsYA",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        ""
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "lQP_TvB8CHzV",
+        "colab_type": "text"
+      },
+      "source": [
+        "##Many-to-one 구조의 RNN사용하여 문맥 반영한 텍스트 생성 모델##"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "kZWjyfQ7CORi",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "from tensorflow.keras.preprocessing.text import Tokenizer\n",
+        "from tensorflow.keras.preprocessing.sequence import pad_sequences\n",
+        "import numpy as np\n",
+        "from tensorflow.keras.utils import to_categorical"
+      ],
+      "execution_count": 1,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "R35_DqrfDHPx",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "text = \"경마장에 있는 말이 뛰고 있다\\n\n",
+        "그의 말이 법이다\\n\n",
+        "가는 말이 고와야 오는 말이 곱다\\n\""
+      ],
+      "execution_count": 2,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "AsbaObDQDay0",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "7e1454cb-948c-4fdd-90c9-d620c1c4ad42"
+      },
+      "source": [
+        "t = Tokenizer()\n",
+        "t.fit_on_texts([text])\n",
+        "vocab_size = len(t.word_index) + 1\n",
+        "\n",
+        "print('단어 집합의 크기 : %d' % vocab_size)"
+      ],
+      "execution_count": 5,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "단어 집합의 크기 : 12\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "FcsGM5jAENYY",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 54
+        },
+        "outputId": "eaabe0b9-3077-4737-d60c-30286132f630"
+      },
+      "source": [
+        "print(t.word_index)"
+      ],
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "{'말이': 1, '경마장에': 2, '있는': 3, '뛰고': 4, '있다': 5, '그의': 6, '법이다': 7, '가는': 8, '고와야': 9, '오는': 10, '곱다': 11}\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "-Yb4lk3fE2dQ",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 221
+        },
+        "outputId": "df3d664f-5879-4335-9640-b587fabd16aa"
+      },
+      "source": [
+        "# 훈련 데이터 만들기\n",
+        "for line in text.split('\\n'):\n",
+        "  print(line)\n",
+        "\n",
+        "sequences = list()\n",
+        "for line in text.split('\\n'):\n",
+        "  encoded = t.texts_to_sequences([line])[0]\n",
+        "  print(encoded)"
+      ],
+      "execution_count": 28,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "경마장에 있는 말이 뛰고 있다\n",
+            "\n",
+            "그의 말이 법이다\n",
+            "\n",
+            "가는 말이 고와야 오는 말이 곱다\n",
+            "\n",
+            "[2, 3, 1, 4, 5]\n",
+            "[]\n",
+            "[6, 1, 7]\n",
+            "[]\n",
+            "[8, 1, 9, 10, 1, 11]\n",
+            "[]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "3bH_YP02Itth",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "sequences = list()\n",
+        "for line in text.split('\\n'):\n",
+        "  encoded = t.texts_to_sequences([line])[0]  \n",
+        "  for i in range(1, len(encoded)):\n",
+        "    sequence = encoded[:i+1]\n",
+        "    sequences.append(sequence)"
+      ],
+      "execution_count": 29,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "_bvmb4mkFip8",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 204
+        },
+        "outputId": "b097a49f-5e5a-44e3-e82c-69064ed21d5a"
+      },
+      "source": [
+        "sequences #[경마장에, 있는] [경마장에, 있는. 말이] ...."
+      ],
+      "execution_count": 30,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "[[2, 3],\n",
+              " [2, 3, 1],\n",
+              " [2, 3, 1, 4],\n",
+              " [2, 3, 1, 4, 5],\n",
+              " [6, 1],\n",
+              " [6, 1, 7],\n",
+              " [8, 1],\n",
+              " [8, 1, 9],\n",
+              " [8, 1, 9, 10],\n",
+              " [8, 1, 9, 10, 1],\n",
+              " [8, 1, 9, 10, 1, 11]]"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 30
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "7yYo5Bw7HLc3",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "f7f5993f-46e7-4aa0-f9ea-b2a41a1a9dac"
+      },
+      "source": [
+        "max_len = max(len(l) for l in sequences)\n",
+        "print('샘플의 최대 길이 : {}'.format(max_len))"
+      ],
+      "execution_count": 31,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "샘플의 최대 길이 : 6\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "eIQ8sTe-H5M6",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 204
+        },
+        "outputId": "f9b8b67e-4232-4f7c-dfe8-802a08fd4188"
+      },
+      "source": [
+        "sequences = pad_sequences(sequences, maxlen=max_len, padding='pre')\n",
+        "print(sequences)"
+      ],
+      "execution_count": 32,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "[[ 0  0  0  0  2  3]\n",
+            " [ 0  0  0  2  3  1]\n",
+            " [ 0  0  2  3  1  4]\n",
+            " [ 0  2  3  1  4  5]\n",
+            " [ 0  0  0  0  6  1]\n",
+            " [ 0  0  0  6  1  7]\n",
+            " [ 0  0  0  0  8  1]\n",
+            " [ 0  0  0  8  1  9]\n",
+            " [ 0  0  8  1  9 10]\n",
+            " [ 0  8  1  9 10  1]\n",
+            " [ 8  1  9 10  1 11]]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "feQtBbudIE_T",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 238
+        },
+        "outputId": "6bff3f02-92fe-4835-ef22-e470c236c97d"
+      },
+      "source": [
+        "sequences = np.array(sequences)\n",
+        "X = sequences[:,:-1] # 리스트의 마지막 열을 빼고 저장\n",
+        "y = sequences[:,-1] # 리스트의 마지막 열만 저장\n",
+        "\n",
+        "print(X, '\\n\\n', y)\n"
+      ],
+      "execution_count": 34,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "[[ 0  0  0  0  2]\n",
+            " [ 0  0  0  2  3]\n",
+            " [ 0  0  2  3  1]\n",
+            " [ 0  2  3  1  4]\n",
+            " [ 0  0  0  0  6]\n",
+            " [ 0  0  0  6  1]\n",
+            " [ 0  0  0  0  8]\n",
+            " [ 0  0  0  8  1]\n",
+            " [ 0  0  8  1  9]\n",
+            " [ 0  8  1  9 10]\n",
+            " [ 8  1  9 10  1]] \n",
+            "\n",
+            " [ 3  1  4  5  1  7  1  9 10  1 11]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "erN4Ss1aJyD2",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "y = to_categorical(y, num_classes=vocab_size)"
+      ],
+      "execution_count": 35,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "pj0tPbFCdS73",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 204
+        },
+        "outputId": "6bd03485-755c-435d-a96b-4479bdb72441"
+      },
+      "source": [
+        "y"
+      ],
+      "execution_count": 36,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "array([[0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],\n",
+              "       [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],\n",
+              "       [0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0.],\n",
+              "       [0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.],\n",
+              "       [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],\n",
+              "       [0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.],\n",
+              "       [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],\n",
+              "       [0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],\n",
+              "       [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0.],\n",
+              "       [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],\n",
+              "       [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]], dtype=float32)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 36
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "7vr2kCI2dVdD",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "#모델 설계\n",
+        "from tensorflow.keras.models import Sequential\n",
+        "from tensorflow.keras.layers import Embedding, Dense, SimpleRNN"
+      ],
+      "execution_count": 37,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Q2jN7fBDdjNV",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 1000
+        },
+        "outputId": "5933ea5a-0f1b-4870-c244-42372387eb73"
+      },
+      "source": [
+        "model = Sequential()\n",
+        "model.add(Embedding(vocab_size, 10, input_length=max_len-1)) #레이블 분리해서 X의 길이는 5\n",
+        "model.add(SimpleRNN(32))\n",
+        "model.add(Dense(vocab_size, activation='softmax'))\n",
+        "model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])\n",
+        "model.fit(X, y, epochs=200, verbose=2)"
+      ],
+      "execution_count": 38,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Epoch 1/200\n",
+            "1/1 - 0s - loss: 2.4667 - accuracy: 0.0000e+00\n",
+            "Epoch 2/200\n",
+            "1/1 - 0s - loss: 2.4525 - accuracy: 0.1818\n",
+            "Epoch 3/200\n",
+            "1/1 - 0s - loss: 2.4379 - accuracy: 0.2727\n",
+            "Epoch 4/200\n",
+            "1/1 - 0s - loss: 2.4230 - accuracy: 0.2727\n",
+            "Epoch 5/200\n",
+            "1/1 - 0s - loss: 2.4076 - accuracy: 0.2727\n",
+            "Epoch 6/200\n",
+            "1/1 - 0s - loss: 2.3916 - accuracy: 0.3636\n",
+            "Epoch 7/200\n",
+            "1/1 - 0s - loss: 2.3749 - accuracy: 0.4545\n",
+            "Epoch 8/200\n",
+            "1/1 - 0s - loss: 2.3575 - accuracy: 0.3636\n",
+            "Epoch 9/200\n",
+            "1/1 - 0s - loss: 2.3393 - accuracy: 0.3636\n",
+            "Epoch 10/200\n",
+            "1/1 - 0s - loss: 2.3202 - accuracy: 0.3636\n",
+            "Epoch 11/200\n",
+            "1/1 - 0s - loss: 2.3001 - accuracy: 0.3636\n",
+            "Epoch 12/200\n",
+            "1/1 - 0s - loss: 2.2791 - accuracy: 0.3636\n",
+            "Epoch 13/200\n",
+            "1/1 - 0s - loss: 2.2570 - accuracy: 0.3636\n",
+            "Epoch 14/200\n",
+            "1/1 - 0s - loss: 2.2338 - accuracy: 0.3636\n",
+            "Epoch 15/200\n",
+            "1/1 - 0s - loss: 2.2097 - accuracy: 0.3636\n",
+            "Epoch 16/200\n",
+            "1/1 - 0s - loss: 2.1847 - accuracy: 0.3636\n",
+            "Epoch 17/200\n",
+            "1/1 - 0s - loss: 2.1589 - accuracy: 0.3636\n",
+            "Epoch 18/200\n",
+            "1/1 - 0s - loss: 2.1324 - accuracy: 0.3636\n",
+            "Epoch 19/200\n",
+            "1/1 - 0s - loss: 2.1056 - accuracy: 0.3636\n",
+            "Epoch 20/200\n",
+            "1/1 - 0s - loss: 2.0788 - accuracy: 0.3636\n",
+            "Epoch 21/200\n",
+            "1/1 - 0s - loss: 2.0523 - accuracy: 0.3636\n",
+            "Epoch 22/200\n",
+            "1/1 - 0s - loss: 2.0266 - accuracy: 0.3636\n",
+            "Epoch 23/200\n",
+            "1/1 - 0s - loss: 2.0024 - accuracy: 0.3636\n",
+            "Epoch 24/200\n",
+            "1/1 - 0s - loss: 1.9800 - accuracy: 0.3636\n",
+            "Epoch 25/200\n",
+            "1/1 - 0s - loss: 1.9600 - accuracy: 0.3636\n",
+            "Epoch 26/200\n",
+            "1/1 - 0s - loss: 1.9426 - accuracy: 0.3636\n",
+            "Epoch 27/200\n",
+            "1/1 - 0s - loss: 1.9280 - accuracy: 0.3636\n",
+            "Epoch 28/200\n",
+            "1/1 - 0s - loss: 1.9158 - accuracy: 0.3636\n",
+            "Epoch 29/200\n",
+            "1/1 - 0s - loss: 1.9055 - accuracy: 0.3636\n",
+            "Epoch 30/200\n",
+            "1/1 - 0s - loss: 1.8963 - accuracy: 0.3636\n",
+            "Epoch 31/200\n",
+            "1/1 - 0s - loss: 1.8871 - accuracy: 0.3636\n",
+            "Epoch 32/200\n",
+            "1/1 - 0s - loss: 1.8774 - accuracy: 0.3636\n",
+            "Epoch 33/200\n",
+            "1/1 - 0s - loss: 1.8665 - accuracy: 0.3636\n",
+            "Epoch 34/200\n",
+            "1/1 - 0s - loss: 1.8543 - accuracy: 0.3636\n",
+            "Epoch 35/200\n",
+            "1/1 - 0s - loss: 1.8408 - accuracy: 0.3636\n",
+            "Epoch 36/200\n",
+            "1/1 - 0s - loss: 1.8264 - accuracy: 0.3636\n",
+            "Epoch 37/200\n",
+            "1/1 - 0s - loss: 1.8114 - accuracy: 0.3636\n",
+            "Epoch 38/200\n",
+            "1/1 - 0s - loss: 1.7962 - accuracy: 0.3636\n",
+            "Epoch 39/200\n",
+            "1/1 - 0s - loss: 1.7811 - accuracy: 0.3636\n",
+            "Epoch 40/200\n",
+            "1/1 - 0s - loss: 1.7664 - accuracy: 0.3636\n",
+            "Epoch 41/200\n",
+            "1/1 - 0s - loss: 1.7521 - accuracy: 0.3636\n",
+            "Epoch 42/200\n",
+            "1/1 - 0s - loss: 1.7382 - accuracy: 0.3636\n",
+            "Epoch 43/200\n",
+            "1/1 - 0s - loss: 1.7246 - accuracy: 0.3636\n",
+            "Epoch 44/200\n",
+            "1/1 - 0s - loss: 1.7112 - accuracy: 0.3636\n",
+            "Epoch 45/200\n",
+            "1/1 - 0s - loss: 1.6977 - accuracy: 0.3636\n",
+            "Epoch 46/200\n",
+            "1/1 - 0s - loss: 1.6841 - accuracy: 0.3636\n",
+            "Epoch 47/200\n",
+            "1/1 - 0s - loss: 1.6700 - accuracy: 0.4545\n",
+            "Epoch 48/200\n",
+            "1/1 - 0s - loss: 1.6555 - accuracy: 0.5455\n",
+            "Epoch 49/200\n",
+            "1/1 - 0s - loss: 1.6405 - accuracy: 0.5455\n",
+            "Epoch 50/200\n",
+            "1/1 - 0s - loss: 1.6249 - accuracy: 0.5455\n",
+            "Epoch 51/200\n",
+            "1/1 - 0s - loss: 1.6087 - accuracy: 0.5455\n",
+            "Epoch 52/200\n",
+            "1/1 - 0s - loss: 1.5921 - accuracy: 0.5455\n",
+            "Epoch 53/200\n",
+            "1/1 - 0s - loss: 1.5751 - accuracy: 0.5455\n",
+            "Epoch 54/200\n",
+            "1/1 - 0s - loss: 1.5578 - accuracy: 0.5455\n",
+            "Epoch 55/200\n",
+            "1/1 - 0s - loss: 1.5403 - accuracy: 0.5455\n",
+            "Epoch 56/200\n",
+            "1/1 - 0s - loss: 1.5227 - accuracy: 0.5455\n",
+            "Epoch 57/200\n",
+            "1/1 - 0s - loss: 1.5050 - accuracy: 0.5455\n",
+            "Epoch 58/200\n",
+            "1/1 - 0s - loss: 1.4873 - accuracy: 0.5455\n",
+            "Epoch 59/200\n",
+            "1/1 - 0s - loss: 1.4698 - accuracy: 0.5455\n",
+            "Epoch 60/200\n",
+            "1/1 - 0s - loss: 1.4523 - accuracy: 0.5455\n",
+            "Epoch 61/200\n",
+            "1/1 - 0s - loss: 1.4350 - accuracy: 0.5455\n",
+            "Epoch 62/200\n",
+            "1/1 - 0s - loss: 1.4179 - accuracy: 0.5455\n",
+            "Epoch 63/200\n",
+            "1/1 - 0s - loss: 1.4010 - accuracy: 0.5455\n",
+            "Epoch 64/200\n",
+            "1/1 - 0s - loss: 1.3843 - accuracy: 0.5455\n",
+            "Epoch 65/200\n",
+            "1/1 - 0s - loss: 1.3677 - accuracy: 0.5455\n",
+            "Epoch 66/200\n",
+            "1/1 - 0s - loss: 1.3514 - accuracy: 0.5455\n",
+            "Epoch 67/200\n",
+            "1/1 - 0s - loss: 1.3353 - accuracy: 0.5455\n",
+            "Epoch 68/200\n",
+            "1/1 - 0s - loss: 1.3193 - accuracy: 0.5455\n",
+            "Epoch 69/200\n",
+            "1/1 - 0s - loss: 1.3036 - accuracy: 0.5455\n",
+            "Epoch 70/200\n",
+            "1/1 - 0s - loss: 1.2879 - accuracy: 0.6364\n",
+            "Epoch 71/200\n",
+            "1/1 - 0s - loss: 1.2724 - accuracy: 0.6364\n",
+            "Epoch 72/200\n",
+            "1/1 - 0s - loss: 1.2570 - accuracy: 0.6364\n",
+            "Epoch 73/200\n",
+            "1/1 - 0s - loss: 1.2417 - accuracy: 0.6364\n",
+            "Epoch 74/200\n",
+            "1/1 - 0s - loss: 1.2265 - accuracy: 0.6364\n",
+            "Epoch 75/200\n",
+            "1/1 - 0s - loss: 1.2113 - accuracy: 0.6364\n",
+            "Epoch 76/200\n",
+            "1/1 - 0s - loss: 1.1962 - accuracy: 0.6364\n",
+            "Epoch 77/200\n",
+            "1/1 - 0s - loss: 1.1811 - accuracy: 0.6364\n",
+            "Epoch 78/200\n",
+            "1/1 - 0s - loss: 1.1660 - accuracy: 0.6364\n",
+            "Epoch 79/200\n",
+            "1/1 - 0s - loss: 1.1509 - accuracy: 0.6364\n",
+            "Epoch 80/200\n",
+            "1/1 - 0s - loss: 1.1358 - accuracy: 0.6364\n",
+            "Epoch 81/200\n",
+            "1/1 - 0s - loss: 1.1208 - accuracy: 0.6364\n",
+            "Epoch 82/200\n",
+            "1/1 - 0s - loss: 1.1058 - accuracy: 0.6364\n",
+            "Epoch 83/200\n",
+            "1/1 - 0s - loss: 1.0909 - accuracy: 0.6364\n",
+            "Epoch 84/200\n",
+            "1/1 - 0s - loss: 1.0759 - accuracy: 0.6364\n",
+            "Epoch 85/200\n",
+            "1/1 - 0s - loss: 1.0610 - accuracy: 0.6364\n",
+            "Epoch 86/200\n",
+            "1/1 - 0s - loss: 1.0462 - accuracy: 0.6364\n",
+            "Epoch 87/200\n",
+            "1/1 - 0s - loss: 1.0314 - accuracy: 0.6364\n",
+            "Epoch 88/200\n",
+            "1/1 - 0s - loss: 1.0166 - accuracy: 0.6364\n",
+            "Epoch 89/200\n",
+            "1/1 - 0s - loss: 1.0018 - accuracy: 0.6364\n",
+            "Epoch 90/200\n",
+            "1/1 - 0s - loss: 0.9871 - accuracy: 0.6364\n",
+            "Epoch 91/200\n",
+            "1/1 - 0s - loss: 0.9725 - accuracy: 0.6364\n",
+            "Epoch 92/200\n",
+            "1/1 - 0s - loss: 0.9578 - accuracy: 0.6364\n",
+            "Epoch 93/200\n",
+            "1/1 - 0s - loss: 0.9433 - accuracy: 0.7273\n",
+            "Epoch 94/200\n",
+            "1/1 - 0s - loss: 0.9288 - accuracy: 0.7273\n",
+            "Epoch 95/200\n",
+            "1/1 - 0s - loss: 0.9144 - accuracy: 0.7273\n",
+            "Epoch 96/200\n",
+            "1/1 - 0s - loss: 0.9000 - accuracy: 0.7273\n",
+            "Epoch 97/200\n",
+            "1/1 - 0s - loss: 0.8857 - accuracy: 0.7273\n",
+            "Epoch 98/200\n",
+            "1/1 - 0s - loss: 0.8715 - accuracy: 0.7273\n",
+            "Epoch 99/200\n",
+            "1/1 - 0s - loss: 0.8574 - accuracy: 0.7273\n",
+            "Epoch 100/200\n",
+            "1/1 - 0s - loss: 0.8434 - accuracy: 0.7273\n",
+            "Epoch 101/200\n",
+            "1/1 - 0s - loss: 0.8295 - accuracy: 0.7273\n",
+            "Epoch 102/200\n",
+            "1/1 - 0s - loss: 0.8157 - accuracy: 0.7273\n",
+            "Epoch 103/200\n",
+            "1/1 - 0s - loss: 0.8021 - accuracy: 0.7273\n",
+            "Epoch 104/200\n",
+            "1/1 - 0s - loss: 0.7885 - accuracy: 0.7273\n",
+            "Epoch 105/200\n",
+            "1/1 - 0s - loss: 0.7751 - accuracy: 0.7273\n",
+            "Epoch 106/200\n",
+            "1/1 - 0s - loss: 0.7618 - accuracy: 0.7273\n",
+            "Epoch 107/200\n",
+            "1/1 - 0s - loss: 0.7486 - accuracy: 0.8182\n",
+            "Epoch 108/200\n",
+            "1/1 - 0s - loss: 0.7355 - accuracy: 0.8182\n",
+            "Epoch 109/200\n",
+            "1/1 - 0s - loss: 0.7226 - accuracy: 0.8182\n",
+            "Epoch 110/200\n",
+            "1/1 - 0s - loss: 0.7099 - accuracy: 0.8182\n",
+            "Epoch 111/200\n",
+            "1/1 - 0s - loss: 0.6973 - accuracy: 0.8182\n",
+            "Epoch 112/200\n",
+            "1/1 - 0s - loss: 0.6848 - accuracy: 0.9091\n",
+            "Epoch 113/200\n",
+            "1/1 - 0s - loss: 0.6725 - accuracy: 0.9091\n",
+            "Epoch 114/200\n",
+            "1/1 - 0s - loss: 0.6603 - accuracy: 0.9091\n",
+            "Epoch 115/200\n",
+            "1/1 - 0s - loss: 0.6484 - accuracy: 0.9091\n",
+            "Epoch 116/200\n",
+            "1/1 - 0s - loss: 0.6365 - accuracy: 0.9091\n",
+            "Epoch 117/200\n",
+            "1/1 - 0s - loss: 0.6249 - accuracy: 0.9091\n",
+            "Epoch 118/200\n",
+            "1/1 - 0s - loss: 0.6134 - accuracy: 0.9091\n",
+            "Epoch 119/200\n",
+            "1/1 - 0s - loss: 0.6020 - accuracy: 0.9091\n",
+            "Epoch 120/200\n",
+            "1/1 - 0s - loss: 0.5908 - accuracy: 0.9091\n",
+            "Epoch 121/200\n",
+            "1/1 - 0s - loss: 0.5798 - accuracy: 0.9091\n",
+            "Epoch 122/200\n",
+            "1/1 - 0s - loss: 0.5690 - accuracy: 0.9091\n",
+            "Epoch 123/200\n",
+            "1/1 - 0s - loss: 0.5583 - accuracy: 0.9091\n",
+            "Epoch 124/200\n",
+            "1/1 - 0s - loss: 0.5478 - accuracy: 0.9091\n",
+            "Epoch 125/200\n",
+            "1/1 - 0s - loss: 0.5375 - accuracy: 0.9091\n",
+            "Epoch 126/200\n",
+            "1/1 - 0s - loss: 0.5273 - accuracy: 0.9091\n",
+            "Epoch 127/200\n",
+            "1/1 - 0s - loss: 0.5173 - accuracy: 0.9091\n",
+            "Epoch 128/200\n",
+            "1/1 - 0s - loss: 0.5075 - accuracy: 0.9091\n",
+            "Epoch 129/200\n",
+            "1/1 - 0s - loss: 0.4978 - accuracy: 0.9091\n",
+            "Epoch 130/200\n",
+            "1/1 - 0s - loss: 0.4883 - accuracy: 0.9091\n",
+            "Epoch 131/200\n",
+            "1/1 - 0s - loss: 0.4789 - accuracy: 0.9091\n",
+            "Epoch 132/200\n",
+            "1/1 - 0s - loss: 0.4697 - accuracy: 0.9091\n",
+            "Epoch 133/200\n",
+            "1/1 - 0s - loss: 0.4607 - accuracy: 0.9091\n",
+            "Epoch 134/200\n",
+            "1/1 - 0s - loss: 0.4518 - accuracy: 0.9091\n",
+            "Epoch 135/200\n",
+            "1/1 - 0s - loss: 0.4431 - accuracy: 0.9091\n",
+            "Epoch 136/200\n",
+            "1/1 - 0s - loss: 0.4345 - accuracy: 0.9091\n",
+            "Epoch 137/200\n",
+            "1/1 - 0s - loss: 0.4261 - accuracy: 0.9091\n",
+            "Epoch 138/200\n",
+            "1/1 - 0s - loss: 0.4178 - accuracy: 0.9091\n",
+            "Epoch 139/200\n",
+            "1/1 - 0s - loss: 0.4097 - accuracy: 0.9091\n",
+            "Epoch 140/200\n",
+            "1/1 - 0s - loss: 0.4017 - accuracy: 0.9091\n",
+            "Epoch 141/200\n",
+            "1/1 - 0s - loss: 0.3939 - accuracy: 0.9091\n",
+            "Epoch 142/200\n",
+            "1/1 - 0s - loss: 0.3862 - accuracy: 0.9091\n",
+            "Epoch 143/200\n",
+            "1/1 - 0s - loss: 0.3787 - accuracy: 0.9091\n",
+            "Epoch 144/200\n",
+            "1/1 - 0s - loss: 0.3713 - accuracy: 0.9091\n",
+            "Epoch 145/200\n",
+            "1/1 - 0s - loss: 0.3641 - accuracy: 0.9091\n",
+            "Epoch 146/200\n",
+            "1/1 - 0s - loss: 0.3569 - accuracy: 0.9091\n",
+            "Epoch 147/200\n",
+            "1/1 - 0s - loss: 0.3500 - accuracy: 0.9091\n",
+            "Epoch 148/200\n",
+            "1/1 - 0s - loss: 0.3431 - accuracy: 0.9091\n",
+            "Epoch 149/200\n",
+            "1/1 - 0s - loss: 0.3364 - accuracy: 0.9091\n",
+            "Epoch 150/200\n",
+            "1/1 - 0s - loss: 0.3299 - accuracy: 0.9091\n",
+            "Epoch 151/200\n",
+            "1/1 - 0s - loss: 0.3234 - accuracy: 0.9091\n",
+            "Epoch 152/200\n",
+            "1/1 - 0s - loss: 0.3171 - accuracy: 0.9091\n",
+            "Epoch 153/200\n",
+            "1/1 - 0s - loss: 0.3109 - accuracy: 0.9091\n",
+            "Epoch 154/200\n",
+            "1/1 - 0s - loss: 0.3049 - accuracy: 0.9091\n",
+            "Epoch 155/200\n",
+            "1/1 - 0s - loss: 0.2989 - accuracy: 0.9091\n",
+            "Epoch 156/200\n",
+            "1/1 - 0s - loss: 0.2931 - accuracy: 1.0000\n",
+            "Epoch 157/200\n",
+            "1/1 - 0s - loss: 0.2874 - accuracy: 1.0000\n",
+            "Epoch 158/200\n",
+            "1/1 - 0s - loss: 0.2818 - accuracy: 1.0000\n",
+            "Epoch 159/200\n",
+            "1/1 - 0s - loss: 0.2763 - accuracy: 1.0000\n",
+            "Epoch 160/200\n",
+            "1/1 - 0s - loss: 0.2709 - accuracy: 1.0000\n",
+            "Epoch 161/200\n",
+            "1/1 - 0s - loss: 0.2657 - accuracy: 1.0000\n",
+            "Epoch 162/200\n",
+            "1/1 - 0s - loss: 0.2605 - accuracy: 1.0000\n",
+            "Epoch 163/200\n",
+            "1/1 - 0s - loss: 0.2555 - accuracy: 1.0000\n",
+            "Epoch 164/200\n",
+            "1/1 - 0s - loss: 0.2505 - accuracy: 1.0000\n",
+            "Epoch 165/200\n",
+            "1/1 - 0s - loss: 0.2457 - accuracy: 1.0000\n",
+            "Epoch 166/200\n",
+            "1/1 - 0s - loss: 0.2410 - accuracy: 1.0000\n",
+            "Epoch 167/200\n",
+            "1/1 - 0s - loss: 0.2363 - accuracy: 1.0000\n",
+            "Epoch 168/200\n",
+            "1/1 - 0s - loss: 0.2318 - accuracy: 1.0000\n",
+            "Epoch 169/200\n",
+            "1/1 - 0s - loss: 0.2273 - accuracy: 1.0000\n",
+            "Epoch 170/200\n",
+            "1/1 - 0s - loss: 0.2229 - accuracy: 1.0000\n",
+            "Epoch 171/200\n",
+            "1/1 - 0s - loss: 0.2187 - accuracy: 1.0000\n",
+            "Epoch 172/200\n",
+            "1/1 - 0s - loss: 0.2145 - accuracy: 1.0000\n",
+            "Epoch 173/200\n",
+            "1/1 - 0s - loss: 0.2104 - accuracy: 1.0000\n",
+            "Epoch 174/200\n",
+            "1/1 - 0s - loss: 0.2064 - accuracy: 1.0000\n",
+            "Epoch 175/200\n",
+            "1/1 - 0s - loss: 0.2025 - accuracy: 1.0000\n",
+            "Epoch 176/200\n",
+            "1/1 - 0s - loss: 0.1986 - accuracy: 1.0000\n",
+            "Epoch 177/200\n",
+            "1/1 - 0s - loss: 0.1949 - accuracy: 1.0000\n",
+            "Epoch 178/200\n",
+            "1/1 - 0s - loss: 0.1912 - accuracy: 1.0000\n",
+            "Epoch 179/200\n",
+            "1/1 - 0s - loss: 0.1876 - accuracy: 1.0000\n",
+            "Epoch 180/200\n",
+            "1/1 - 0s - loss: 0.1840 - accuracy: 1.0000\n",
+            "Epoch 181/200\n",
+            "1/1 - 0s - loss: 0.1806 - accuracy: 1.0000\n",
+            "Epoch 182/200\n",
+            "1/1 - 0s - loss: 0.1772 - accuracy: 1.0000\n",
+            "Epoch 183/200\n",
+            "1/1 - 0s - loss: 0.1739 - accuracy: 1.0000\n",
+            "Epoch 184/200\n",
+            "1/1 - 0s - loss: 0.1707 - accuracy: 1.0000\n",
+            "Epoch 185/200\n",
+            "1/1 - 0s - loss: 0.1675 - accuracy: 1.0000\n",
+            "Epoch 186/200\n",
+            "1/1 - 0s - loss: 0.1644 - accuracy: 1.0000\n",
+            "Epoch 187/200\n",
+            "1/1 - 0s - loss: 0.1614 - accuracy: 1.0000\n",
+            "Epoch 188/200\n",
+            "1/1 - 0s - loss: 0.1584 - accuracy: 1.0000\n",
+            "Epoch 189/200\n",
+            "1/1 - 0s - loss: 0.1555 - accuracy: 1.0000\n",
+            "Epoch 190/200\n",
+            "1/1 - 0s - loss: 0.1526 - accuracy: 1.0000\n",
+            "Epoch 191/200\n",
+            "1/1 - 0s - loss: 0.1499 - accuracy: 1.0000\n",
+            "Epoch 192/200\n",
+            "1/1 - 0s - loss: 0.1471 - accuracy: 1.0000\n",
+            "Epoch 193/200\n",
+            "1/1 - 0s - loss: 0.1445 - accuracy: 1.0000\n",
+            "Epoch 194/200\n",
+            "1/1 - 0s - loss: 0.1419 - accuracy: 1.0000\n",
+            "Epoch 195/200\n",
+            "1/1 - 0s - loss: 0.1393 - accuracy: 1.0000\n",
+            "Epoch 196/200\n",
+            "1/1 - 0s - loss: 0.1368 - accuracy: 1.0000\n",
+            "Epoch 197/200\n",
+            "1/1 - 0s - loss: 0.1344 - accuracy: 1.0000\n",
+            "Epoch 198/200\n",
+            "1/1 - 0s - loss: 0.1320 - accuracy: 1.0000\n",
+            "Epoch 199/200\n",
+            "1/1 - 0s - loss: 0.1297 - accuracy: 1.0000\n",
+            "Epoch 200/200\n",
+            "1/1 - 0s - loss: 0.1274 - accuracy: 1.0000\n"
+          ],
+          "name": "stdout"
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "<tensorflow.python.keras.callbacks.History at 0x7f5b2d400f60>"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 38
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "oKmtpDFYe-VF",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "def sentence_generation(model, t, current_word, n): # 모델, 토크나이저, 현재 단어, 반복할 횟수\n",
+        "    init_word = current_word # 처음 들어온 단어도 마지막에 같이 출력하기위해 저장\n",
+        "    sentence = ''\n",
+        "    for _ in range(n): # n번 반복\n",
+        "        encoded = t.texts_to_sequences([current_word])[0] # 현재 단어에 대한 정수 인코딩\n",
+        "        encoded = pad_sequences([encoded], maxlen=5, padding='pre') # 데이터에 대한 패딩\n",
+        "        result = model.predict_classes(encoded, verbose=0)\n",
+        "    # 입력한 X(현재 단어)에 대해서 Y를 예측하고 Y(예측한 단어)를 result에 저장.\n",
+        "        for word, index in t.word_index.items(): \n",
+        "            if index == result: # 만약 예측한 단어와 인덱스와 동일한 단어가 있다면\n",
+        "                break # 해당 단어가 예측 단어이므로 break\n",
+        "        current_word = current_word + ' '  + word # 현재 단어 + ' ' + 예측 단어를 현재 단어로 변경\n",
+        "        sentence = sentence + ' ' + word # 예측 단어를 문장에 저장\n",
+        "    # for문이므로 이 행동을 다시 반복\n",
+        "    sentence = init_word + sentence\n",
+        "    return sentence"
+      ],
+      "execution_count": 41,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "NiOn-FnSjCMW",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "582a64c9-b0ad-4308-839c-5898bc556255"
+      },
+      "source": [
+        "print(sentence_generation(model, t, '경마장에', 4))"
+      ],
+      "execution_count": 49,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "경마장에 있는 말이 뛰고 있다\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ZW8XugXCjN4s",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "de2964ca-83fd-4701-bfb0-999977b7b5c2"
+      },
+      "source": [
+        "print(sentence_generation(model, t, '그의', 2))"
+      ],
+      "execution_count": 46,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "그의 말이 법이다\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "le8ivHwbjZ0m",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "6ffee595-a9e3-48b9-cdc3-25780a0f53bb"
+      },
+      "source": [
+        "print(sentence_generation(model, t, '가는', 5)) # 5번 예측"
+      ],
+      "execution_count": 47,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "가는 말이 고와야 오는 말이 곱다\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "7IUeZTAFjhYU",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        ""
+      ],
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
